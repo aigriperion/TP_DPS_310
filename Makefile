@@ -14,7 +14,7 @@ $(shell mkdir -p $(BUILD_DIR))
 # Règle par défaut pour compiler l'exécutable
 all: $(EXEC)
 
-# Règle pour créer l'exécutable
+# Règle pour créer l'exécutable principal
 $(EXEC): $(OBJ)
 	$(CC) $(OBJ) -o $(EXEC) $(LDFLAGS)  # Ajouter LDFLAGS ici
 
@@ -29,3 +29,8 @@ run: all
 # Règle pour nettoyer les fichiers générés dans le dossier build
 clean:
 	rm -rf $(BUILD_DIR)
+
+# Règle pour compiler et exécuter un fichier spécifique dans Tests (exemple: make test-mqtt_test)
+test-%: Tests/%.c $(HEADER)
+	$(CC) $(CFLAGS) $< -o build/$@ $(LDFLAGS)
+	./build/$@
