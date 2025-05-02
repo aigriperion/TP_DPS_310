@@ -1,8 +1,8 @@
-#include "mqtt_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <mosquitto.h>
+#include "../include/mqtt_utils.h"
 
 int mqtt_lib_init() {
     int rc = mosquitto_lib_init();

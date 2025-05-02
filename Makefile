@@ -1,58 +1,31 @@
-# ==== CONFIGURATION ====
+# Variables
+CC = gcc
+CFLAGS = -Wall -I./include
+LDFLAGS = -L/usr/local/lib -lmosquitto
+SRC = src/dps310.c src/mqtt_utils.c src/main.c
+OBJ = $(SRC:src/%.c=build/%.o)  # Les fichiers objets seront placés dans build/
+EXEC = build/main  # L'exécutable sera dans le dossier build
+HEADER = include/dps310.h include/mqtt_utils.h
+BUILD_DIR = build  # Dossier pour les fichiers objets et l'exécutable
 
-# Dossiers
-SRC_DIR := src
-TEST_DIR := Tests
-BIN_DIR := bin
+# Créer le dossier build s'il n'existe pas
+$(shell mkdir -p $(BUILD_DIR))
 
-# Compilateur et flags
-CC := gcc
-CFLAGS := -Wall -Wextra -O2
-LDFLAGS := -lmosquitto
+# Règle par défaut pour compiler l'exécutable
+all: $(EXEC)
 
-# Projet principal (à implémenter plus tard)
-MAIN_SRC := $(wildcard $(SRC_DIR)/*.c)
-MAIN_BIN := $(BIN_DIR)/thermalprobe
+# Règle pour créer l'exécutable
+$(EXEC): $(OBJ)
+	$(CC) $(OBJ) -o $(EXEC) $(LDFLAGS)  # Ajouter LDFLAGS ici
 
-# Fichiers de test
-TEST_SRC := $(wildcard $(TEST_DIR)/*.c)
-TEST_BINS := $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/%.test,$(TEST_SRC))
+# Règle pour compiler les fichiers .c en .o dans le dossier build/
+build/%.o: src/%.c $(HEADER)
+	$(CC) $(CFLAGS) -c $< -o $@
 
+# Règle pour exécuter le programme après la compilation
+run: all
+	./$(EXEC)
 
-# ==== RÈGLES PRINCIPALES ====
-
-# Par défaut : compile le projet principal
-all: $(MAIN_BIN)
-
-# Projet principal (temporaire placeholder)
-$(MAIN_BIN): $(MAIN_SRC)
-	@echo "Pas encore de source principale, placeholder..."
-	mkdir -p $(BIN_DIR)
-	$(CC) -o $@ $^ $(LDFLAGS)
-
-# ==== TESTS ====
-
-# Règle pour compiler et exécuter les tests
-test: $(TEST_BINS)
-	@echo "Tous les tests ont été compilés et exécutés."
-	@for test in $(TEST_BINS); do \
-		echo "Exécution du test $$test..."; \
-		./$$test; \
-	done
-
-# Exemple : make test-mqttsend
-test-%: $(BIN_DIR)/%.test
-	@echo "Execution du test '$*'..."
-	./$<
-
-# Compilation individuelle des tests
-$(BIN_DIR)/%.test: $(TEST_DIR)/%.c
-	mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-
-# ==== NETTOYAGE ====
-
+# Règle pour nettoyer les fichiers générés dans le dossier build
 clean:
-	rm -rf $(BIN_DIR)
-
-.PHONY: all test clean test-%
+	rm -rf $(BUILD_DIR)
