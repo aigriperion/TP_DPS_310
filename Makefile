@@ -1,36 +1,37 @@
-# Variables
+# Nom de l'exécutable
+TARGET = dps310_reader
+
+# Dossier pour l'exécutable
+BIN_DIR = bin
+
+# Dossiers source et include
+SRC_DIR = src
+INCLUDE_DIR = include
+
+# Compilateur
 CC = gcc
-CFLAGS = -Wall -I./include
-LDFLAGS = -L/usr/local/lib -lmosquitto
-SRC = src/dps310.c src/mqtt_utils.c src/main.c
-OBJ = $(SRC:src/%.c=build/%.o)  # Les fichiers objets seront placés dans build/
-EXEC = build/main  # L'exécutable sera dans le dossier build
-HEADER = include/dps310.h include/mqtt_utils.h
-BUILD_DIR = build  # Dossier pour les fichiers objets et l'exécutable
 
-# Créer le dossier build s'il n'existe pas
-$(shell mkdir -p $(BUILD_DIR))
+# Options de compilation
+CFLAGS = -Wall -Wextra -O2 -I$(INCLUDE_DIR)
 
-# Règle par défaut pour compiler l'exécutable
-all: $(EXEC)
+# Bibliothèques nécessaires
+LIBS = -lpaho-mqtt3c
 
-# Règle pour créer l'exécutable principal
-$(EXEC): $(OBJ)
-	$(CC) $(OBJ) -o $(EXEC) $(LDFLAGS)  # Ajouter LDFLAGS ici
+# Fichiers source
+SRC = $(SRC_DIR)/main.c $(SRC_DIR)/dps310.c $(SRC_DIR)/mqtt_client.c
 
-# Règle pour compiler les fichiers .c en .o dans le dossier build/
-build/%.o: src/%.c $(HEADER)
-	$(CC) $(CFLAGS) -c $< -o $@
+# Règle par défaut
+all: $(BIN_DIR)/$(TARGET)
 
-# Règle pour exécuter le programme après la compilation
-run: all
-	./$(EXEC)
+# Règle pour créer le dossier bin et l'exécutable
+$(BIN_DIR)/$(TARGET): $(SRC)
+	mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $(BIN_DIR)/$(TARGET) $(SRC) $(LIBS)
 
-# Règle pour nettoyer les fichiers générés dans le dossier build
+# Règle pour exécuter le programme
+run: $(BIN_DIR)/$(TARGET)
+	./$(BIN_DIR)/$(TARGET)
+
+# Règle pour nettoyer les fichiers générés
 clean:
-	rm -rf $(BUILD_DIR)
-
-# Règle pour compiler et exécuter un fichier spécifique dans Tests (exemple: make test-mqtt_test)
-test-%: Tests/%.c $(HEADER)
-	$(CC) $(CFLAGS) $< -o build/$@ $(LDFLAGS)
-	./build/$@
+	rm -rf $(BIN_DIR)

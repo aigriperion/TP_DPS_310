@@ -1,67 +1,47 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "../include/dps310.h"
+#include <stdint.h>
+#include <stdio.h>
 
-// Fonction pour lire les mesures depuis un fichier dump
-int read_dps310_dump(const char *filename, dps310_measurement **measurements, int *count) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        fprintf(stderr, "Erreur : Impossible d'ouvrir le fichier %s\n", filename);
-        return -1;  // Erreur d'ouverture du fichier
+// Table des facteurs d'échelle
+static const uint32_t _scaleFactors[] = {
+    524288,
+    1572864,
+    3670016,
+    7864320,
+    253952,
+    516096,
+    1040384,
+    2088960
+};
+
+int32_t _signed24_to_signed32(int32_t value) {
+    if (value & 0x800000) {
+        value |= 0xFF000000;
     }
-
-    // Calcul du nombre de lignes dans le fichier
-    int num_lines = 0;
-    char line[256];
-    while (fgets(line, sizeof(line), file)) {
-        num_lines++;
-    }
-
-    // Réinitialisation du fichier à la première ligne
-    fseek(file, 0, SEEK_SET);
-
-    // Allocation de mémoire pour stocker les mesures
-    *measurements = (dps310_measurement *)malloc(sizeof(dps310_measurement) * num_lines);
-    if (!*measurements) {
-        fprintf(stderr, "Erreur : Impossible d'allouer la mémoire pour les mesures\n");
-        fclose(file);
-        return -2;  // Erreur d'allocation mémoire
-    }
-
-    // Lecture des données du fichier
-    int i = 0;
-    while (fgets(line, sizeof(line), file)) {
-        // Lire une ligne, parser les valeurs
-        int coeff1, coeff2, coeff3;
-        float temperature;
-
-        // Utilisation de sscanf pour parser la ligne
-        if (sscanf(line, "%f %d %d %d", &temperature, &coeff1, &coeff2, &coeff3) != 4) {
-            fprintf(stderr, "Erreur : Format de ligne invalide dans le fichier %s\n", filename);
-            free(*measurements);
-            fclose(file);
-            return -3;  // Erreur de format de ligne
-        }
-
-        // Stockage de la mesure dans le tableau
-        (*measurements)[i].temperature = temperature;
-        (*measurements)[i].coeff1 = coeff1;
-        (*measurements)[i].coeff2 = coeff2;
-        (*measurements)[i].coeff3 = coeff3;
-        i++;
-    }
-
-    // Mise à jour du nombre de mesures
-    *count = num_lines;
-
-    fclose(file);
-    return 0;  // Succès
+    return value;
 }
 
-// Fonction pour libérer la mémoire allouée pour les mesures
-void free_measurements(dps310_measurement *measurements) {
-    if (measurements) {
-        free(measurements);
+int32_t _get_s24_at(const uint8_t *regmap, int offset) {
+    int32_t value = (regmap[offset] << 16) | (regmap[offset + 1] << 8) | regmap[offset + 2];
+    return _signed24_to_signed32(value);
+}
+
+int32_t _get_temperature_raw(const uint8_t *regmap) {
+    return _get_s24_at(regmap, REG_TEMP);
+}
+
+float _get_temperature_real(const uint8_t *regmap) {
+    int32_t C0 = ((regmap[REG_COEF1] << 4) | (regmap[REG_COEF2] >> 4)) & 0xFFF;
+    if (C0 & 0x800) {
+        C0 |= 0xFFFFF000;
     }
+
+    int32_t C1 = (((regmap[REG_COEF2] & 0x0F) << 8) | regmap[REG_COEF3]) & 0xFFF;
+    if (C1 & 0x800) {
+        C1 |= 0xFFFFF000;
+    }
+
+    int32_t Traw = _get_temperature_raw(regmap);
+    float Traw_sc = Traw / (float)_scaleFactors[OSR_SINGLE];
+    return C0 * 0.5f + C1 * Traw_sc;
 }

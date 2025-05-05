@@ -1,18 +1,25 @@
 #ifndef DPS310_H
 #define DPS310_H
 
-// Structure pour stocker une mesure DPS310
-typedef struct {
-    float temperature;  // Température en °C
-    int coeff1;         // Coefficient 1
-    int coeff2;         // Coefficient 2
-    int coeff3;         // Coefficient 3
-} dps310_measurement;
+#include <stdint.h>
 
-// Fonction pour lire les mesures depuis un fichier dump
-int read_dps310_dump(const char *filename, dps310_measurement **measurements, int *count);
+// Registres connus
+enum RegOffset_e {
+    REG_TEMP = 0x03,
+    REG_COEF1 = 0x10,
+    REG_COEF2 = 0x11,
+    REG_COEF3 = 0x12
+};
 
-// Fonction pour libérer la mémoire allouée pour les mesures
-void free_measurements(dps310_measurement *measurements);
+// Facteurs de suréchantillonnage
+enum OversamplingRate_e {
+    OSR_SINGLE = 0x00
+};
+
+// Prototypes des fonctions
+int32_t _signed24_to_signed32(int32_t value);
+int32_t _get_s24_at(const uint8_t *regmap, int offset);
+int32_t _get_temperature_raw(const uint8_t *regmap);
+float _get_temperature_real(const uint8_t *regmap);
 
 #endif // DPS310_H

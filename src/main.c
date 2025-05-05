@@ -1,68 +1,20 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include "../include/dps310.h"
-#include "../include/mqtt_utils.h"
+#include "dps310.h"
+#include "mqtt_client.h"
 
-#define DUMP_PATH "../dump/dps310_dump.txt"
-
-// Fonction pour publier une mesure sur MQTT
-int send_measurement_to_mqtt(struct mosquitto *mosq, const dps310_measurement *measurement) {
-    // Création du message JSON
-    char payload[256];
-    snprintf(payload, sizeof(payload), "{\"temperature\": %.2f, \"coeff1\": %d, \"coeff2\": %d, \"coeff3\": %d}",
-             measurement->temperature, measurement->coeff1, measurement->coeff2, measurement->coeff3);
-
-    // Envoi du message MQTT
-    return mqtt_publish(mosq, payload);
-}
+// Registre simulé du DPS310
+const uint8_t dps310_regmap[] = {
+    0xf8, 0x01, 0x90, 0x02, 0x34, 0xf2, 0x26, 0xa0, 0xc7, 0x04, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+    0x0d, 0xee, 0xd6, 0x12, 0xe4, 0xbf, 0x43, 0xc0, 0xfb, 0xcb, 0x03, 0x7d, 0xe8, 0x9e, 0x00, 0x05,
+    0xfd, 0xbd, 0x00, 0x00, 0x29, 0x53, 0x04, 0x70, 0xc4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x65, 0x17, 0x00, 0x66, 0xc3, 0x0a, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+};
 
 int main() {
-    const char *filename = DUMP_PATH;
-    dps310_measurement *measurements = NULL;
-    int count = 0;
+    float temperature = _get_temperature_real(dps310_regmap);
+    printf("\nMeasured temperature is %.1f °C\n", temperature);
 
-    // Initialiser la bibliothèque Mosquitto
-    int rc = mqtt_lib_init();
-    if (rc != MOSQ_ERR_SUCCESS) {
-        return EXIT_FAILURE;
-    }
+    send_temperature_mqtt(temperature);
 
-    // Créer un client Mosquitto
-    struct mosquitto *mosq = mqtt_create_client();
-    if (!mosq) {
-        return EXIT_FAILURE;
-    }
-
-    // Se connecter au broker MQTT
-    rc = mqtt_connect(mosq);
-    if (rc != MOSQ_ERR_SUCCESS) {
-        mqtt_disconnect_and_cleanup(mosq);
-        return EXIT_FAILURE;
-    }
-
-    // Lire les mesures depuis le fichier
-    rc = read_dps310_dump(filename, &measurements, &count);
-    if (rc != 0) {
-        mqtt_disconnect_and_cleanup(mosq);
-        return EXIT_FAILURE;
-    }
-
-    // Publier les mesures sur MQTT
-    for (int i = 0; i < count; i++) {
-        rc = send_measurement_to_mqtt(mosq, &measurements[i]);
-        if (rc != MOSQ_ERR_SUCCESS) {
-            fprintf(stderr, "Erreur lors de l'envoi de la mesure %d\n", i + 1);
-        }
-        sleep(1);  // Pause de 1 seconde entre chaque envoi
-    }
-
-    // Libérer la mémoire des mesures
-    free_measurements(measurements);
-
-    // Déconnexion et nettoyage
-    mqtt_disconnect_and_cleanup(mosq);
-
-    return EXIT_SUCCESS;
+    return 0;
 }
