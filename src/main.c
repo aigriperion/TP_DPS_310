@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
         snprintf(topic_pressure, sizeof(topic_pressure), "thprobe/%s/pressure", name);
 
         send_temperature_mqtt(topic_temp, temperature);
-        send_temperature_mqtt(topic_pressure, pressure);
+        send_pressure_mqtt(topic_pressure, pressure);
 
         sleep(freq);
     }

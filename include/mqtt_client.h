@@ -7,5 +7,6 @@
 #define TIMEOUT     10000L
 
 void send_temperature_mqtt(const char *topic, float temperature);
+void send_pressure_mqtt(const char *topic, float pressure);
 
 #endif // MQTT_CLIENT_H
