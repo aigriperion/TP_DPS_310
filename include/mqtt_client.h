@@ -3,7 +3,7 @@
 
 #define ADDRESS     "tcp://broker.hivemq.com:1883"
 #define CLIENTID    "DPS310_Client"
-#define TOPIC       "sensor/temperature"
+#define TOPIC       "thprobe/TOURET&GIRARD/temperature"
 #define QOS         1
 #define TIMEOUT     10000L
 
