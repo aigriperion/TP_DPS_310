@@ -15,6 +15,16 @@ static const uint32_t _scaleFactors[] = {
     2088960
 };
 
+// Initialise le capteur DPS310
+void dps310_init() {
+    fakedps310_power_on();
+}
+
+// Éteint le capteur DPS310
+void dps310_shutdown() {
+    fakedps310_power_off();
+}
+
 // Convertit un entier signé 24 bits en 32 bits
 static int32_t _signed24_to_signed32(int32_t value) {
     if (value & 0x800000) {
@@ -51,46 +61,71 @@ static float _get_temperature_real(const uint8_t *regmap) {
     return C0 * 0.5f + C1 * Traw_sc;
 }
 
-// Initialise le capteur DPS310
-void dps310_init() {
-    fakedps310_power_on();
-}
-
-// Éteint le capteur DPS310
-void dps310_shutdown() {
-    fakedps310_power_off();
-}
-
 // Lit la température en degrés Celsius
 float dps310_read_temperature() {
     const uint8_t *regmap = fakedps310_get_regmap();
     return _get_temperature_real(regmap);
 }
 
-// Lit la pression brute (ajoutez une fonction similaire si nécessaire)
 static int32_t _get_pressure_raw(const uint8_t *regmap) {
     return _get_s24_at(regmap, REG_PRESS);
 }
 
-// Calcule la pression réelle (ajoutez une fonction similaire si nécessaire)
-static float _get_pressure_real(const uint8_t *regmap) {
-    int32_t C00 = (regmap[REG_COEF4] << 12) | (regmap[REG_COEF5] << 4) | (regmap[REG_COEF6] >> 4);
-    if (C00 & 0x80000) {
-        C00 |= 0xFFF00000;
-    }
+typedef struct {
+    int32_t c00, c10;
+    int16_t c01, c11, c20, c21, c30;
+} dps310_coeffs_t;
 
-    int32_t C10 = ((regmap[REG_COEF6] & 0x0F) << 16) | (regmap[REG_COEF7] << 8) | regmap[REG_COEF8];
-    if (C10 & 0x80000) {
-        C10 |= 0xFFF00000;
-    }
+static dps310_coeffs_t _get_pressure_coeffs(const uint8_t *reg) {
+    dps310_coeffs_t coeffs;
 
-    int32_t Praw = _get_pressure_raw(regmap);
-    float Praw_sc = Praw / (float)_scaleFactors[OSR_SINGLE];
-    return C00 + C10 * Praw_sc;
+    // c00 (20 bits signé)
+    int32_t c00 = ((int32_t)reg[0x13] << 12) |
+                  ((int32_t)reg[0x14] << 4) |
+                  ((int32_t)(reg[0x15] >> 4) & 0x0F);
+    if (c00 & (1 << 19)) c00 |= 0xFFF00000;
+    coeffs.c00 = c00;
+
+    // c10 (20 bits signé)
+    int32_t c10 = ((int32_t)(reg[0x15] & 0x0F) << 16) |
+                  ((int32_t)reg[0x16] << 8) |
+                  (int32_t)reg[0x17];
+    if (c10 & (1 << 19)) c10 |= 0xFFF00000;
+    coeffs.c10 = c10;
+
+    // 16-bit signed coefficients
+    #define READ_S16(MSB, LSB) (int16_t)((int16_t)(reg[MSB] << 8) | reg[LSB])
+
+    coeffs.c01 = READ_S16(0x18, 0x19); // c01
+    coeffs.c11 = READ_S16(0x1A, 0x1B); // c11
+    coeffs.c20 = READ_S16(0x1C, 0x1D); // c20
+    coeffs.c21 = READ_S16(0x1E, 0x1F); // c21
+    coeffs.c30 = READ_S16(0x20, 0x21); // c30
+
+    return coeffs;
 }
 
-// Lit la pression en millibars
+static float _get_pressure_real(const uint8_t *regmap) {
+    dps310_coeffs_t coef = _get_pressure_coeffs(regmap);
+
+    int32_t Praw = _get_pressure_raw(regmap);
+    int32_t Traw = _get_temperature_raw(regmap); // nécessaire pour la correction
+
+    float kP = (float)_scaleFactors[OSR_SINGLE];
+    float kT = (float)_scaleFactors[OSR_SINGLE];
+
+    float Praw_sc = Praw / kP;
+    float Traw_sc = Traw / kT;
+
+    float pcomp = coef.c00 +
+                  Praw_sc * (coef.c10 + Praw_sc * (coef.c20 + Praw_sc * coef.c30)) +
+                  Traw_sc * coef.c01 +
+                  Traw_sc * Praw_sc * (coef.c11 + Praw_sc * coef.c21);
+                  
+    return pcomp; // en Pascals
+}
+
 float dps310_read_pressure() {
     const uint8_t *regmap = fakedps310_get_regmap();
-    return _get_pressure_real(regmap);
+    return _get_pressure_real(regmap) / 100.0f;
 }

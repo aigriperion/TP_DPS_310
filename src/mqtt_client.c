@@ -5,12 +5,6 @@
 
 // Fonction pour envoyer la température via MQTT
 void send_temperature_mqtt(const char *topic, float temperature) {
-    // Vérification de la validité de la température
-    if (temperature < -40.0 || temperature > 85.0) { // Plage typique pour un capteur comme le DPS310
-        printf("Invalid temperature value: %.2f °C. Skipping MQTT publish.\n", temperature);
-        return;
-    }
-
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     int rc;
@@ -52,11 +46,6 @@ void send_temperature_mqtt(const char *topic, float temperature) {
 
 // Fonction pour envoyer la pression via MQTT
 void send_pressure_mqtt(const char *topic, float pressure) {
-    if (pressure < 300.0 || pressure > 1100.0) { // Plage typique pour la pression atmosphérique en mbar
-        printf("Invalid pressure value: %.2f mbar. Skipping MQTT publish.\n", pressure);
-        return;
-    }
-
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     int rc;
