@@ -1,42 +1,41 @@
 # Nom de l'exécutable
 TARGET = thermalprobe
 
-# Dossier pour l'exécutable
+# Dossiers
 BIN_DIR = bin
-
-# Dossiers source et include
 SRC_DIR = src
 INCLUDE_DIR = include
+LIB_DIR = lib
 
-# Compilateur
+# Compilateur et options
 CC = gcc
-
-# Options de compilation
 CFLAGS = -Wall -Wextra -O2 -I$(INCLUDE_DIR)
-
-# Bibliothèques nécessaires
-LIBS = -lpaho-mqtt3c
+LIBS = -lpaho-mqtt3c -L$(LIB_DIR) -ldps310
 
 # Fichiers source
-SRC = $(SRC_DIR)/main.c $(SRC_DIR)/dps310.c $(SRC_DIR)/mqtt_client.c
+SRC = $(SRC_DIR)/main.c $(SRC_DIR)/fakedps310.c $(SRC_DIR)/mqtt_client.c $(SRC_DIR)/utils.c
 
-# Règle par défaut
-all: $(BIN_DIR)/$(TARGET)
+# Règles principales
+all: $(LIB_DIR)/libdps310.a $(LIB_DIR)/libdps310.so $(BIN_DIR)/$(TARGET)
 
-# Règle pour créer le dossier bin et l'exécutable
-$(BIN_DIR)/$(TARGET): $(SRC)
+# Compilation de l'exécutable principal
+$(BIN_DIR)/$(TARGET): $(SRC) $(LIB_DIR)/libdps310.a
 	mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) -o $(BIN_DIR)/$(TARGET) $(SRC) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-# Règle pour exécuter le programme
-run: $(BIN_DIR)/$(TARGET)
-	./$(BIN_DIR)/$(TARGET) temp 5
+# Compilation de la bibliothèque statique
+$(LIB_DIR)/libdps310.a: $(LIB_DIR)/libdps310.c $(INCLUDE_DIR)/libdps310.h
+	$(CC) -c -fPIC -o $(LIB_DIR)/libdps310.o $(LIB_DIR)/libdps310.c
+	ar rcs $@ $(LIB_DIR)/libdps310.o
 
-# Règle pour nettoyer les fichiers générés
+# Compilation de la bibliothèque dynamique
+$(LIB_DIR)/libdps310.so: $(LIB_DIR)/libdps310.c $(INCLUDE_DIR)/libdps310.h
+	$(CC) -shared -o $@ $(LIB_DIR)/libdps310.c
+
+# Nettoyage des fichiers générés
 clean:
-	rm -rf $(BIN_DIR)
+	rm -rf $(BIN_DIR) $(LIB_DIR)/*.o $(LIB_DIR)/*.a $(LIB_DIR)/*.so
 
-# Vérification des dépendances
-check-deps:
-	@command -v gcc >/dev/null 2>&1 || { echo "gcc is not installed. Please install it."; exit 1; }
-	@ldconfig -p | grep -q paho-mqtt3c || { echo "Paho MQTT C library is not installed. Please install it."; exit 1; }
+# Exécution du programme avec des arguments par défaut
+run: $(BIN_DIR)/$(TARGET)
+	./$(BIN_DIR)/$(TARGET) sensor1 5
