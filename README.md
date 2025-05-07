@@ -3,6 +3,12 @@
 ## Description
 Ce projet implémente un programme pour lire les données d'un capteur DPS310, calculer la température et envoyer les données via MQTT.
 
+## Fonctionnalités
+- Lecture de la température simulée à partir d'un registre DPS310.
+- Publication des données sur un serveur MQTT (`test.mosquitto.org`).
+- Support de topics dynamiques au format `thprobe/[NAME]/temperature`.
+- Fréquence configurable pour l'envoi des messages MQTT.
+
 ## Arborescence du projet
 ```
 .
@@ -25,13 +31,16 @@ Le projet utilise un `Makefile` pour simplifier la compilation et l'exécution. 
 
 1. **`make` ou `make all`**  
    Compile l'exécutable principal du projet en utilisant tous les fichiers sources.  
-   L'exécutable est généré dans le dossier `bin` sous le nom `dps310_reader`.
+   L'exécutable est généré dans le dossier `bin` sous le nom `thermalprobe`.
 
 2. **`make run`**  
-   Compile le projet si nécessaire et exécute l'exécutable principal `bin/dps310_reader`.
+   Compile le projet si nécessaire et exécute l'exécutable principal `bin/thermalprobe` avec des arguments par défaut (`temp` comme nom de capteur et une fréquence de 5 secondes).
 
 3. **`make clean`**  
    Supprime tous les fichiers générés, y compris l'exécutable dans le dossier `bin`.
+
+4. **`make check-deps`**  
+   Vérifie si les dépendances nécessaires (compilateur GCC et bibliothèque MQTT Paho) sont installées.
 
 ## Exemple d'utilisation
 
@@ -40,25 +49,47 @@ Le projet utilise un `Makefile` pour simplifier la compilation et l'exécution. 
    make
    ```
 
-2. **Exécuter le programme** :
+2. **Exécuter le programme avec des arguments personnalisés** :
    ```bash
-   make run
+   ./bin/thermalprobe [NAME] [FREQ]
+   ```
+   - **`NAME`** : Nom du capteur utilisé pour construire le topic MQTT (par exemple, `sensor1`).
+   - **`FREQ`** : Fréquence d'envoi des messages MQTT en secondes (par exemple, `5`).
+
+   Exemple :
+   ```bash
+   ./bin/thermalprobe sensor1 5
    ```
 
-3. **Nettoyer les fichiers générés** :
+3. **Observer les messages publiés** :
+   Utilisez la commande suivante pour vous abonner à tous les sous-topics de `thprobe` :
+   ```bash
+   mosquitto_sub -h test.mosquitto.org -t "thprobe/#"
+   ```
+
+4. **Nettoyer les fichiers générés** :
    ```bash
    make clean
    ```
 
 ## Dépendances
-Compilateur GCC :
-Assurez-vous que GCC est installé pour compiler le code C.
+### Compilateur GCC
+Assurez-vous que GCC est installé pour compiler le code C :
 ```bash
 sudo apt-get install build-essential
 ```
 
+### Bibliothèque MQTT Paho
 Le projet utilise la bibliothèque MQTT Paho. Assurez-vous qu'elle est installée sur votre système avant de compiler le projet.  
 Pour installer la bibliothèque sur une distribution basée sur Debian, utilisez la commande suivante :
 ```bash
-sudo apt-get install libpaho-mqtt-dev
+sudo apt-get install libpaho-mqtt3c-dev
 ```
+
+## Notes
+- Les messages sont publiés sur des topics au format `thprobe/[NAME]/temperature`.
+- Pour observer les messages de plusieurs capteurs, utilisez le caractère générique `#` dans la commande `mosquitto_sub` :
+  ```bash
+  mosquitto_sub -h test.mosquitto.org -t "thprobe/#"
+  ```
+- Le serveur MQTT utilisé est `test.mosquitto.org` sur le port 1883.
