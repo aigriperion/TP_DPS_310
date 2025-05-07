@@ -1,5 +1,5 @@
 # Nom de l'exécutable
-TARGET = dps310_reader
+TARGET = thermalprobe
 
 # Dossier pour l'exécutable
 BIN_DIR = bin
@@ -30,8 +30,13 @@ $(BIN_DIR)/$(TARGET): $(SRC)
 
 # Règle pour exécuter le programme
 run: $(BIN_DIR)/$(TARGET)
-	./$(BIN_DIR)/$(TARGET)
+	./$(BIN_DIR)/$(TARGET) temp 5
 
 # Règle pour nettoyer les fichiers générés
 clean:
 	rm -rf $(BIN_DIR)
+
+# Vérification des dépendances
+check-deps:
+	@command -v gcc >/dev/null 2>&1 || { echo "gcc is not installed. Please install it."; exit 1; }
+	@ldconfig -p | grep -q paho-mqtt3c || { echo "Paho MQTT C library is not installed. Please install it."; exit 1; }

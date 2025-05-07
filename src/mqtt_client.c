@@ -3,7 +3,7 @@
 #include <string.h>
 #include <MQTTClient.h>
 
-void send_temperature_mqtt(float temperature) {
+void send_temperature_mqtt(const char *topic, float temperature) {
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     int rc;
@@ -17,8 +17,8 @@ void send_temperature_mqtt(float temperature) {
         return;
     }
 
-    char payload[50];
-    snprintf(payload, sizeof(payload), "Temperature: %.1f °C", temperature);
+    char payload[100];
+    snprintf(payload, sizeof(payload), "Sensor: %s, Temperature: %.1f °C", CLIENTID, temperature);
 
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
     pubmsg.payload = payload;
@@ -27,8 +27,8 @@ void send_temperature_mqtt(float temperature) {
     pubmsg.retained = 0;
 
     MQTTClient_deliveryToken token;
-    MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token);
-    printf("Publishing message: %s\n", payload);
+    MQTTClient_publishMessage(client, topic, &pubmsg, &token);
+    printf("Publishing message to topic '%s': %s\n", topic, payload);
 
     MQTTClient_waitForCompletion(client, token, TIMEOUT);
     printf("Message delivered\n");

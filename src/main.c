@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>  // Pour atoi
+#include <unistd.h>  // Pour sleep
 #include "dps310.h"
 #include "mqtt_client.h"
 
@@ -10,11 +12,36 @@ const uint8_t dps310_regmap[] = {
     0x65, 0x17, 0x00, 0x66, 0xc3, 0x0a, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
 };
 
-int main() {
+int main(int argc, char ** argv) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s [NAME] [FREQ]\n", argv[0]);
+        return 1;
+    }
+
+    char *name = argv[1];
+    int freq = 0;
+
+    if (argc == 3) {
+        freq = atoi(argv[2]);
+        if (freq <= 0) {
+            fprintf(stderr, "FREQ must be a positive integer.\n");
+            return 1;
+        }
+    }
+
     float temperature = _get_temperature_real(dps310_regmap);
     printf("\nMeasured temperature is %.1f °C\n", temperature);
 
-    send_temperature_mqtt(temperature);
+    if (argc == 3) {
+        char topic[256];
+        snprintf(topic, sizeof(topic), "thprobe/%s/temperature", name);
+
+        while (1) {
+            send_temperature_mqtt(topic, temperature);
+            printf("Temperature sent to MQTT topic: %s\n", topic);
+            sleep(freq);
+        }
+    }
 
     return 0;
 }
