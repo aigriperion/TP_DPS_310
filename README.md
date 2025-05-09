@@ -6,7 +6,9 @@ Ce projet implémente un programme pour lire les données d'un capteur DPS310, c
 ## Fonctionnalités
 - Lecture de la température et de la pression simulées à partir d'un registre DPS310.
 - Publication des données sur un serveur MQTT (`test.mosquitto.org`).
-- Support de topics dynamiques au format `thprobe/[NAME]/temperature` et `thprobe/[NAME]/pressure`.
+- Support de topics dynamiques :
+  - **Données** : `thprobe/[NAME]/data/temperature` et `thprobe/[NAME]/data/pressure`.
+  - **Commandes** : `thprobe/[NAME]/cmd`.
 - Fréquence configurable pour l'envoi des messages MQTT.
 
 ## Arborescence du projet
@@ -92,7 +94,8 @@ sudo apt-get install libpaho-mqtt3c-dev
 ```
 
 ## Notes
-- Les messages sont publiés sur des topics au format `thprobe/[NAME]/temperature` pour la température et `thprobe/[NAME]/pressure` pour la pression.
+- Les messages sont publiés sur des topics au format `thprobe/[NAME]/data/temperature` pour la température et `thprobe/[NAME]/data/pressure` pour la pression.
+- Les commandes peuvent être envoyées sur le topic `thprobe/[NAME]/cmd`.
 - Pour observer les messages de plusieurs capteurs, utilisez le caractère générique `#` dans la commande `mosquitto_sub` :
   ```bash
   mosquitto_sub -h test.mosquitto.org -t "thprobe/#"

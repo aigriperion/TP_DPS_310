@@ -10,7 +10,7 @@ LIB_DIR = lib
 # Compilateur et options
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -I$(INCLUDE_DIR)
-LIBS = -lpaho-mqtt3c $(LIB_DIR)/libdps310.a
+LIBS = -lpaho-mqtt3c -lpthread $(LIB_DIR)/libdps310.a
 
 # Fichiers source
 SRC = $(SRC_DIR)/main.c $(SRC_DIR)/fakedps310.c $(SRC_DIR)/mqtt_client.c

@@ -1,5 +1,6 @@
 #include "../include/mqtt_client.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <MQTTClient.h>
 
@@ -74,6 +75,55 @@ void send_pressure_mqtt(const char *topic, float pressure) {
 
     MQTTClient_waitForCompletion(client, token, TIMEOUT);
     printf("Message delivered\n");
+
+    MQTTClient_disconnect(client, 10000);
+    MQTTClient_destroy(&client);
+}
+
+// Wrapper pour adapter la fonction à pthread_create
+void *subscribe_to_commands_thread(void *args) {
+    subscribe_args_t *sub_args = (subscribe_args_t *)args;
+    subscribe_to_commands(sub_args->topic, sub_args->command_handler);
+    free(sub_args); // Libérer la mémoire allouée
+    return NULL;
+}
+
+// Fonction pour écouter les commandes MQTT
+void subscribe_to_commands(const char *topic, void (*command_handler)(const char *)) {
+    MQTTClient client;
+    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+    int rc;
+
+    // Création du client MQTT
+    MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    conn_opts.keepAliveInterval = 20;
+    conn_opts.cleansession = 1;
+
+    // Connexion au broker MQTT
+    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
+        fprintf(stderr, "Failed to connect to MQTT broker, return code %d\n", rc);
+        return;
+    }
+
+    // Souscription au topic
+    MQTTClient_subscribe(client, topic, QOS);
+
+    while (1) {
+        char *received_topic = NULL;
+        int topic_len;
+        MQTTClient_message *message = NULL;
+
+        // Attente des messages
+        rc = MQTTClient_receive(client, &received_topic, &topic_len, &message, 1000);
+        if (rc == MQTTCLIENT_SUCCESS && message != NULL) {
+            if (strncmp(received_topic, topic, topic_len) == 0) {
+                char *payload = (char *)message->payload;
+                command_handler(payload); // Appelle le gestionnaire de commandes
+            }
+            MQTTClient_freeMessage(&message);
+            MQTTClient_free(received_topic);
+        }
+    }
 
     MQTTClient_disconnect(client, 10000);
     MQTTClient_destroy(&client);
